@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>영업팀 실적 대시보드</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f1117;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
+
+    header {
+      margin-bottom: 32px;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    /* Summary Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: #1e2130;
+      border: 1px solid #2a2f45;
+      border-radius: 12px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+
+    .card.goal::before  { background: #6366f1; }
+    .card.actual::before { background: #22d3ee; }
+    .card.rate::before  { background: #10b981; }
+
+    .card .label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 10px;
+    }
+
+    .card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .card.goal   .value { color: #818cf8; }
+    .card.actual .value { color: #22d3ee; }
+    .card.rate   .value { color: #10b981; }
+
+    .card .sub {
+      font-size: 0.78rem;
+      color: #64748b;
+    }
+
+    /* Charts */
+    .chart-section {
+      background: #1e2130;
+      border: 1px solid #2a2f45;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .chart-section h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+    }
+
+    .chart-wrap {
+      position: relative;
+      height: 300px;
+    }
+
+    @media (max-width: 640px) {
+      .cards { grid-template-columns: 1fr; }
+      .card .value { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>영업팀 실적 대시보드</h1>
+    <p>2024년 연간 목표 vs 실적 현황</p>
+  </header>
+
+  <div class="cards">
+    <div class="card goal">
+      <div class="label">연간 총 목표</div>
+      <div class="value" id="totalGoal">—</div>
+      <div class="sub">만원</div>
+    </div>
+    <div class="card actual">
+      <div class="label">연간 총 실적</div>
+      <div class="value" id="totalActual">—</div>
+      <div class="sub">만원</div>
+    </div>
+    <div class="card rate">
+      <div class="label">연간 달성률</div>
+      <div class="value" id="achieveRate">—</div>
+      <div class="sub">목표 대비</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <h2>월별 목표 vs 실적</h2>
+    <div class="chart-wrap">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <h2>월별 달성률 (%)</h2>
+    <div class="chart-wrap">
+      <canvas id="lineChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+    const goals   = [5000,5000,5500,5500,6000,6000,6500,6500,7000,7000,7500,8000];
+    const actuals = [4200,5800,6100,4900,6300,7100,6200,5900,7800,8200,7100,9300];
+    const rates   = actuals.map((a, i) => +((a / goals[i]) * 100).toFixed(1));
+
+    const totalGoal   = goals.reduce((s, v) => s + v, 0);
+    const totalActual = actuals.reduce((s, v) => s + v, 0);
+    const totalRate   = ((totalActual / totalGoal) * 100).toFixed(1);
+
+    document.getElementById('totalGoal').textContent   = totalGoal.toLocaleString();
+    document.getElementById('totalActual').textContent = totalActual.toLocaleString();
+    document.getElementById('achieveRate').textContent = totalRate + '%';
+
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#2a2f45';
+
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#94a3b8', font: { size: 12 }, padding: 20, usePointStyle: true }
+        },
+        tooltip: {
+          backgroundColor: '#16192a',
+          borderColor: '#2a2f45',
+          borderWidth: 1,
+          titleColor: '#f1f5f9',
+          bodyColor: '#94a3b8',
+          padding: 12,
+          cornerRadius: 8
+        }
+      },
+      scales: {
+        x: { grid: { color: '#1e2540' }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#1e2540' }, ticks: { color: '#64748b' } }
+      }
+    };
+
+    // Bar Chart
+    new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: '목표',
+            data: goals,
+            backgroundColor: 'rgba(99,102,241,0.55)',
+            borderColor: '#6366f1',
+            borderWidth: 1.5,
+            borderRadius: 4,
+            borderSkipped: false
+          },
+          {
+            label: '실적',
+            data: actuals,
+            backgroundColor: 'rgba(34,211,238,0.55)',
+            borderColor: '#22d3ee',
+            borderWidth: 1.5,
+            borderRadius: 4,
+            borderSkipped: false
+          }
+        ]
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          tooltip: {
+            ...commonOptions.plugins.tooltip,
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} 만원`
+            }
+          }
+        },
+        scales: {
+          ...commonOptions.scales,
+          y: {
+            ...commonOptions.scales.y,
+            ticks: {
+              color: '#64748b',
+              callback: v => v.toLocaleString()
+            }
+          }
+        }
+      }
+    });
+
+    // Line Chart
+    new Chart(document.getElementById('lineChart'), {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [
+          {
+            label: '달성률',
+            data: rates,
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16,185,129,0.12)',
+            borderWidth: 2.5,
+            pointRadius: 5,
+            pointBackgroundColor: rates.map(r => r >= 100 ? '#10b981' : '#f59e0b'),
+            pointBorderColor: '#0f1117',
+            pointBorderWidth: 2,
+            fill: true,
+            tension: 0.35
+          },
+          {
+            label: '목표선 (100%)',
+            data: Array(12).fill(100),
+            borderColor: '#374151',
+            borderWidth: 1.5,
+            borderDash: [6, 4],
+            pointRadius: 0,
+            fill: false
+          }
+        ]
+      },
+      options: {
+        ...commonOptions,
+        plugins: {
+          ...commonOptions.plugins,
+          tooltip: {
+            ...commonOptions.plugins.tooltip,
+            callbacks: {
+              label: ctx => ctx.datasetIndex === 0
+                ? ` 달성률: ${ctx.parsed.y}%`
+                : ` 목표: 100%`
+            }
+          }
+        },
+        scales: {
+          ...commonOptions.scales,
+          y: {
+            ...commonOptions.scales.y,
+            ticks: {
+              color: '#64748b',
+              callback: v => v + '%'
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>
